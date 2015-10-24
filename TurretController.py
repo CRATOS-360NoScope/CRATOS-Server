@@ -4,7 +4,7 @@ import threading
 
 class TurretController:
 
-	GPIO_PIN_YAW   = 11 
+	GPIO_PIN_YAW   = 11
 	GPIO_PIN_PITCH = 12
 	pwm_yaw   = None
 	pwm_pitch = None
@@ -12,11 +12,11 @@ class TurretController:
 	stopPitchFlag = False
 	DEBUG = False
 	pitchDelta = False
-	pitchingActive = False	
+	pitchingActive = False
 	pitchThread = None
 
 	def __init__(self, pin_yaw, pin_pitch, debug=False):
-		self.GPIO_PIN_YAW = pin_yaw 
+		self.GPIO_PIN_YAW = pin_yaw
 		self.GPIO_PIN_PITCH = pin_pitch
 		GPIO.setmode(GPIO.BOARD)
 		GPIO.setup(self.GPIO_PIN_YAW, GPIO.OUT)
@@ -25,14 +25,14 @@ class TurretController:
 		self.pwm_pitch = GPIO.PWM(self.GPIO_PIN_PITCH, 50)
 		self.pwm_yaw.start(7.5)
 		self.pwm_pitch.start(7.5)
-		self.DEBUG = debug		
+		self.DEBUG = debug
 		self.pitchThread = threading.Thread(target=self.pitchWorker)
 
 	def __del__(self):
 		self.pwm_yaw.stop()
 		self.pwm_pitch.stop()
 		GPIO.cleanup()
-	
+
 	# direction +1 for clockwise, -1 for reverse
 	def startYaw(self, direction, sensitivity=1):
 		modifier = 2.5*sensitivity
@@ -48,18 +48,20 @@ class TurretController:
 			print "** stopYaw **"
 		self.pwm_yaw.ChangeDutyCycle(7.5)
 
-	def startPitch(self, direction, sensitivity=.1):	
+	def startPitch(self, direction, sensitivity=.1):
 		self.pitchDelta = direction*sensitivity
-		if self.DEBUG: 
+		if self.DEBUG:
                         print "** startPitch **"
 			print "pitchDelta: "+str(self.pitchDelta)
 		if not self.pitchingActive:
 			if self.DEBUG:
 				print "pitchThread run"
-			self.pitchThread.run()
+		        self.pitchThread = threading.Thread(target=self.pitchWorker)
+			self.stopPitchFlag = False
+                        self.pitchThread.start()
 			print "pitchThread running"
 
-	def pitchWorker(self): 
+	def pitchWorker(self):
                 while not self.stopPitchFlag:
                         self.current_pitch += self.pitchDelta
                         if self.current_pitch > 12.5:
