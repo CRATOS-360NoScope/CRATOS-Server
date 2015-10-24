@@ -3,7 +3,7 @@ import threading
 import sys
 from TurretController import TurretController
 
-tc = TurretController(pin_yaw=11, pin_pitch=12, debug=True)
+tc = TurretController(pin_yaw=11, pin_pitch=12, pin_fire=13, debug=True)
 server_sock=BluetoothSocket( RFCOMM )
 
 def btAdvertise():
@@ -18,10 +18,10 @@ def btAdvertise():
 	advertise_service( server_sock, "SampleServer",
 			   service_id = uuid,
 			   service_classes = [ uuid, SERIAL_PORT_CLASS ],
-			   profiles = [ SERIAL_PORT_PROFILE ], 
-	#                   protocols = [ OBEX_UUID ] 
+			   profiles = [ SERIAL_PORT_PROFILE ],
+	#                   protocols = [ OBEX_UUID ]
 			    )
-			   
+
 	print "Waiting for connection on RFCOMM channel %d" % port
 
 	client_sock, client_info = server_sock.accept()
@@ -48,33 +48,35 @@ def handleInput(client_sock):
 			tc.startPitch(-1)
 		if data == "stop_vertical":
 			tc.stopPitch()
+                if data == "fire":
+                        tc.pullTrigger()
 
-	
+
 	except IOError:
 	    print "disconnected, restarting service"
 	    client_sock.close()
             server_sock.close()
 	    handleInput(btAdvertise())
-		
+
 	sys.exit(0)
-    
+
 	#except KeyboardInterrupt:
 	#    print "disconnected, quitting"
 	#    client_sock.close()
 	#    server_sock.close()
 	#    sys.exit(0)
 
-killThreads = False 
+killThreads = False
 handleInput(btAdvertise());
 
 
 #listenerThread = threading.Thread(target=handleInput, args=(btAdvertise(),))
 #listenerThread.start();
 #while True:
-#    
+#
 #    try:
 #   	pass
-# 
+#
 #   except KeyboardInterrupt:
 #	    listenerThread.stop()
 #	    print "disconnected, quitting"
