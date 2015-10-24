@@ -1,5 +1,7 @@
 import RPi.GPIO as GPIO
 import time
+import threading
+
 class TurretController:
 
 	GPIO_PIN_YAW   = 11 
@@ -7,8 +9,11 @@ class TurretController:
 	pwm_yaw   = None
 	pwm_pitch = None
 	current_pitch = 7.5
-	stopPitch = False
+	stopPitchFlag = False
 	DEBUG = False
+	pitchDelta = False
+	pitchingActive = False	
+	pitchThread = None
 
 	def __init__(self, pin_yaw, pin_pitch, debug=False):
 		self.GPIO_PIN_YAW = pin_yaw 
@@ -21,6 +26,7 @@ class TurretController:
 		self.pwm_yaw.start(7.5)
 		self.pwm_pitch.start(7.5)
 		self.DEBUG = debug		
+		self.pitchThread = threading.Thread(target=self.pitchWorker)
 
 	def __del__(self):
 		self.pwm_yaw.stop()
@@ -42,28 +48,36 @@ class TurretController:
 			print "** stopYaw **"
 		self.pwm_yaw.ChangeDutyCycle(7.5)
 
-	# TODO: Auto stop for limit +60 or -30
-	def startPitch(self, direction, sensitivity=.1):
-		self.stopPitch = False
-		if self.DEBUG:
-			print "** startPitch **"
-		print "Direction: "+str(direction)
-		while (not self.stopPitch):
-			self.current_pitch += direction*sensitivity
-			if (self.current_pitch > 12.5):
-				self.current_pitch = 12.5
-				self.stopPitch = True
+	def startPitch(self, direction, sensitivity=.1):	
+		self.pitchDelta = direction*sensitivity
+		if self.DEBUG: 
+                        print "** startPitch **"
+			print "pitchDelta: "+str(self.pitchDelta)
+		if not self.pitchingActive:
+			if self.DEBUG:
+				print "pitchThread run"
+			self.pitchThread.run()
+			print "pitchThread running"
+
+	def pitchWorker(self): 
+                while not self.stopPitchFlag:
+                        self.current_pitch += self.pitchDelta
+                        if self.current_pitch > 12.5:
+                                self.current_pitch = 12.5
+                                break
+                        if self.current_pitch < 0:
+                                self.current_pitch = 0
 				break
-			if (self.current_pitch < 0):
-				self.current_pitch = 0
-				self.stopPitch = True
-				break
-			print "Duty Cycle: "+str(self.current_pitch)
-			self.pwm_pitch.ChangeDutyCycle(self.current_pitch)
-			time.sleep(0.001)
-			
+                        print "Duty Cycle: "+str(self.current_pitch)
+                        self.pwm_pitch.ChangeDutyCycle(self.current_pitch)
+                        time.sleep(0.1)
+		self.pitchingActive = False
+		print "pitchWorker exit"
+		return
 
 	def stopPitch(self):
 		if self.DEBUG:
 			print "** stopPitch **"
-		self.stopPitch = True
+			print "currentPitch: "+str(self.current_pitch)
+		self.stopPitchFlag = True
+
