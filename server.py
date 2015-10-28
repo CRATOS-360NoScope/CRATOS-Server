@@ -1,10 +1,12 @@
 from bluetooth import *
 import threading
 import sys
+import json
 from TurretController import TurretController
 
 tc = TurretController(pin_yaw=11, pin_pitch=12, pin_fire=13, debug=True)
 server_sock=BluetoothSocket( RFCOMM )
+decoder = json.JSONDecoder()
 
 def btAdvertise():
 	server_sock=BluetoothSocket( RFCOMM )
@@ -36,20 +38,28 @@ def handleInput(client_sock):
 		data = client_sock.recv(1024)
 		if len(data) == 0: break
 		print "received [%s]" % data
-		if data == "left":
-			tc.startYaw(1)
-		if data == "right":
-			tc.startYaw(-1)
-		if data == "stop_horizontal":
-			tc.stopYaw()
-		if data == "up":
-			tc.startPitch(1)
-		if data == "down":
-			tc.startPitch(-1)
-		if data == "stop_vertical":
-			tc.stopPitch()
-                if data == "fire":
-                        tc.pullTrigger()
+                string_list = [e+"}" for e in data.split("}") if e!=""]
+                for item in string_list:
+                    print item
+                    json_data = decoder.decode(item)
+                    if ("Direction" in json_data):
+                        print "Direction in json"
+                        direction = json_data["Direction"]
+                        power = json_data["Power"]
+                        if direction == "Horizontal" and power < 0:
+                                tc.startYaw(1)
+                        if direction == "Horizontal" and power > 0:
+                                tc.startYaw(-1)
+                        if direction == "Horizontal" and power == 0:
+                                tc.stopYaw()
+                        if direction == "Vertical" and power > 0:
+                                tc.startPitch(1)
+                        if direction == "Vertical" and power < 0:
+                                tc.startPitch(-1)
+                        if direction == "Vertical" and power == 0:
+                                tc.stopPitch()
+                    elif "Fire" in json_data:
+                            tc.pullTrigger()
 
 
 	except IOError:

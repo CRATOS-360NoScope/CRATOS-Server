@@ -6,9 +6,12 @@ class TurretController:
 
 	GPIO_PIN_YAW   = 11
 	GPIO_PIN_PITCH = 12
-        GPIO_PIN_FIRE = 13
+	GPIO_PIN_FIRE = 13
 	pwm_yaw   = None
 	pwm_pitch = None
+	pwm_fire = None
+        min_pitch = 5.9 #was 0
+        max_pitch = 9.1 #was 12.5
 	current_pitch = 7.5
 	stopPitchFlag = False
 	DEBUG = False
@@ -20,20 +23,33 @@ class TurretController:
 		self.GPIO_PIN_YAW = pin_yaw
 		self.GPIO_PIN_PITCH = pin_pitch
 		self.GPIO_PIN_FIRE = pin_fire
-                GPIO.setmode(GPIO.BOARD)
+
+		GPIO.setmode(GPIO.BOARD)
+
 		GPIO.setup(self.GPIO_PIN_YAW, GPIO.OUT)
 		GPIO.setup(self.GPIO_PIN_PITCH, GPIO.OUT)
 		GPIO.setup(self.GPIO_PIN_FIRE, GPIO.OUT)
+
 		self.pwm_yaw = GPIO.PWM(self.GPIO_PIN_YAW, 53)
 		self.pwm_pitch = GPIO.PWM(self.GPIO_PIN_PITCH, 50)
 		self.pwm_fire = GPIO.PWM(self.GPIO_PIN_FIRE, 50)
+
 		self.pwm_yaw.start(7.5)
 		self.pwm_pitch.start(7.5)
-                self.pwm_yaw.ChangeDutyCycle(0)
-                self.pwm_pitch.ChangeDutyCycle(0)
+		self.pwm_fire.start(2.5)
+
 		self.DEBUG = debug
-                self.triggerThread = threading.Thread(target=self.triggerWork)
+
+		self.triggerThread = threading.Thread(target=self.triggerWork)
 		self.pitchThread = threading.Thread(target=self.pitchWorker)
+
+		time.sleep(0.5)
+
+		self.pwm_yaw.ChangeDutyCycle(0)
+		self.pwm_pitch.ChangeDutyCycle(0)
+		self.pwm_fire.ChangeDutyCycle(0)
+
+                self.triggerLock = threading.Lock();
 
 	def __del__(self):
 		self.pwm_yaw.stop()
@@ -41,16 +57,21 @@ class TurretController:
 		GPIO.cleanup()
 
 
-        def triggerWork(self):
-            self.pwm_fire.ChangeDutyCycle(10) #pull trigger(not tested)
-            time.sleep(2)
-            self.pwm_fire.ChangeDutyCycle(7.5) #return to original spot
-            print "Trigger Pulled"
-            return
+	def triggerWork(self):
+                if (self.triggerLock.locked()):
+                    return
+                self.triggerLock.acquire()
+		self.pwm_fire.ChangeDutyCycle(8) #pull trigger(not tested)
+		time.sleep(0.5)
+		self.pwm_fire.ChangeDutyCycle(2.5) #return to original spot
+		time.sleep(0.5)
+                self.triggerLock.release()
+		print "Trigger Pulled"
+		return
 
-        def pullTrigger(self, sensitivity=1):
-            self.pitchThread = threading.Thread(target=self.triggerWork)
-            self.pitchThread.start()
+	def pullTrigger(self, sensitivity=1):
+		self.pitchThread = threading.Thread(target=self.triggerWork)
+		self.pitchThread.start()
 
 	# direction +1 for clockwise, -1 for reverse
 	def startYaw(self, direction, sensitivity=1):
@@ -67,33 +88,34 @@ class TurretController:
 			print "** stopYaw **"
 		self.pwm_yaw.ChangeDutyCycle(0) #was 7.5 -> 0 is off
 
-	def startPitch(self, direction, sensitivity=.1):
+	def startPitch(self, direction, sensitivity=.02):
 		self.pitchDelta = direction*sensitivity
 		if self.DEBUG:
-                        print "** startPitch **"
+			print "** startPitch **"
 			print "pitchDelta: "+str(self.pitchDelta)
 		if not self.pitchingActive:
 			if self.DEBUG:
 				print "pitchThread run"
-		        self.pitchThread = threading.Thread(target=self.pitchWorker)
+				self.pitchThread = threading.Thread(target=self.pitchWorker)
 			self.stopPitchFlag = False
-                        self.pitchThread.start()
+			self.pitchThread.start()
 			print "pitchThread running"
 
 	def pitchWorker(self):
-                while not self.stopPitchFlag:
-                        self.current_pitch += self.pitchDelta
-                        if self.current_pitch > 12.5:
-                                self.current_pitch = 12.5
-                                break
-                        if self.current_pitch < 0:
-                                self.current_pitch = 0
+		while not self.stopPitchFlag:
+			self.current_pitch += self.pitchDelta
+			if self.current_pitch > self.max_pitch:
+				self.current_pitch = self.max_pitch
 				break
-                        print "Duty Cycle: "+str(self.current_pitch)
-                        self.pwm_pitch.ChangeDutyCycle(self.current_pitch)
-                        time.sleep(0.1)
+			if self.current_pitch < self.min_pitch:
+				self.current_pitch = self.min_pitch
+				break
+			print "Duty Cycle: "+str(self.current_pitch)
+			self.pwm_pitch.ChangeDutyCycle(self.current_pitch)
+			time.sleep(0.01)
+                time.sleep(0.2)
 		self.pitchingActive = False
-                self.pwm_pitch.ChangeDutyCycle(0)
+		self.pwm_pitch.ChangeDutyCycle(0)
 		print "pitchWorker exit"
 		return
 
