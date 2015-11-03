@@ -6,12 +6,12 @@ class TurretController:
 
 	GPIO_PIN_YAW   = 11
 	GPIO_PIN_PITCH = 12
-	GPIO_PIN_FIRE = 13
+	GPIO_PIN_FIRE  = 13
 	pwm_yaw   = None
 	pwm_pitch = None
 	pwm_fire = None
-        min_pitch = 5.9 #was 0
-        max_pitch = 9.1 #was 12.5
+	min_pitch = 5.9 #was 0
+	max_pitch = 9.1 #was 12.5
 	current_pitch = 7.5
 	stopPitchFlag = False
 	DEBUG = False
@@ -49,7 +49,7 @@ class TurretController:
 		self.pwm_pitch.ChangeDutyCycle(0)
 		self.pwm_fire.ChangeDutyCycle(0)
 
-                self.triggerLock = threading.Lock();
+		self.triggerLock = threading.Lock();
 
 	def __del__(self):
 		self.pwm_yaw.stop()
@@ -58,15 +58,16 @@ class TurretController:
 
 
 	def triggerWork(self):
-                if (self.triggerLock.locked()):
-                    return
-                self.triggerLock.acquire()
+		if (self.triggerLock.locked()):
+			return
+		self.triggerLock.acquire()
 		self.pwm_fire.ChangeDutyCycle(8) #pull trigger(not tested)
 		time.sleep(0.5)
 		self.pwm_fire.ChangeDutyCycle(2.5) #return to original spot
 		time.sleep(0.5)
-                self.triggerLock.release()
-		print "Trigger Pulled"
+		self.triggerLock.release()
+		if self.DEBUG:
+			print "Trigger Pulled"
 		return
 
 	def pullTrigger(self, sensitivity=1):
@@ -113,7 +114,7 @@ class TurretController:
 			print "Duty Cycle: "+str(self.current_pitch)
 			self.pwm_pitch.ChangeDutyCycle(self.current_pitch)
 			time.sleep(0.01)
-                time.sleep(0.2)
+		time.sleep(0.2)
 		self.pitchingActive = False
 		self.pwm_pitch.ChangeDutyCycle(0)
 		print "pitchWorker exit"

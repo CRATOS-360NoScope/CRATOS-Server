@@ -3,10 +3,12 @@ import threading
 import sys
 import json
 from TurretController import TurretController
+from DataLogger import DataLogger
 
 tc = TurretController(pin_yaw=11, pin_pitch=12, pin_fire=13, debug=True)
 server_sock=BluetoothSocket( RFCOMM )
 decoder = json.JSONDecoder()
+dl = DataLogger(debug=True)
 
 def btAdvertise():
 	server_sock=BluetoothSocket( RFCOMM )
@@ -60,6 +62,7 @@ def handleInput(client_sock):
                                 tc.stopPitch()
                     elif "Fire" in json_data:
                             tc.pullTrigger()
+                            dl.writeLog(device_id="test-device-324325")
 
 
 	except IOError:
