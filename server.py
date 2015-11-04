@@ -9,6 +9,7 @@ tc = TurretController(pin_yaw=11, pin_pitch=12, pin_fire=13, debug=True)
 server_sock=BluetoothSocket( RFCOMM )
 decoder = json.JSONDecoder()
 dl = DataLogger(debug=True)
+client_sock = ""
 
 def btAdvertise():
 	server_sock=BluetoothSocket( RFCOMM )
@@ -32,6 +33,34 @@ def btAdvertise():
 	print "Accepted connection from ", client_info
 	return client_sock
 
+def process_command(json_data):
+        command = json_data["command"]
+        if  command == "Horizontal":
+            power = json_data["Power"]
+            if power > 0:
+                tc.startYaw(1)
+            elif power < 0:
+                tc.startYaw(-1)
+            else:
+                tc.stopYaw()
+        if  command == "Vertical":
+            power = json_data["Power"]
+            if power > 0:
+                tc.startPitch(1)
+            elif power < 0:
+                tc.startPitch(-1)
+            else:
+                tc.stopPitch()
+        if  command == "Fire":
+            tc.pullTrigger()
+            dl.writeLog(device_id="test-device-324325")
+
+        if  command == "Logs":
+            logs = dl.readLog()
+            log_json = json.dumps(logs)
+            client_sock.send(log_json)
+            print "Send Firing Log"
+
 
 def handleInput(client_sock):
 
@@ -44,25 +73,9 @@ def handleInput(client_sock):
                 for item in string_list:
                     print item
                     json_data = decoder.decode(item)
-                    if ("Direction" in json_data):
-                        print "Direction in json"
-                        direction = json_data["Direction"]
-                        power = json_data["Power"]
-                        if direction == "Horizontal" and power < 0:
-                                tc.startYaw(1)
-                        if direction == "Horizontal" and power > 0:
-                                tc.startYaw(-1)
-                        if direction == "Horizontal" and power == 0:
-                                tc.stopYaw()
-                        if direction == "Vertical" and power > 0:
-                                tc.startPitch(1)
-                        if direction == "Vertical" and power < 0:
-                                tc.startPitch(-1)
-                        if direction == "Vertical" and power == 0:
-                                tc.stopPitch()
-                    elif "Fire" in json_data:
-                            tc.pullTrigger()
-                            dl.writeLog(device_id="test-device-324325")
+                    if ("command" in json_data):
+                        print "Command in json"
+                        process_command(json_data)
 
 
 	except IOError:

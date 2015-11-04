@@ -13,7 +13,7 @@ class DataLogger:
 			self.cursor = self.connection.cursor()
 		except db.Error, e:
 			print "Error %s:" % e.args[0]
-		
+
 	def writeLog(self, device_id):
 		try:
 			self.cursor.execute("INSERT INTO firing_log (device_id) VALUES (?)",(device_id,))
@@ -40,6 +40,7 @@ class DataLogger:
 				break
 			rows.append({'device_id':row[0], 'discharge_timestamp':row[1]})
 			readCount += 1
+                return rows
 
 	def __del__(self):
 		if self.connection:
