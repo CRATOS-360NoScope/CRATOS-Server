@@ -9,11 +9,12 @@ tc = TurretController(pin_yaw=11, pin_pitch=12, pin_fire=13, debug=True)
 server_sock=BluetoothSocket( RFCOMM )
 decoder = json.JSONDecoder()
 dl = DataLogger(debug=True)
-client_sock = ""
+#client_sock = ""
+#client_addr = ""
 
 def btAdvertise():
 	server_sock=BluetoothSocket( RFCOMM )
-	server_sock.bind(("",PORT_ANY))
+	server_sock.bind(("",0x1001))
 	server_sock.listen(1)
 
 	port = server_sock.getsockname()[1]
@@ -29,11 +30,20 @@ def btAdvertise():
 
 	print "Waiting for connection on RFCOMM channel %d" % port
 
-	client_sock, client_info = server_sock.accept()
-	print "Accepted connection from ", client_info
-	return client_sock
+        try:
+            client_sock, client_info = server_sock.accept()
+	    print "Accepted connection from ", client_info
+            client_addr, psm = client_info
+	    return client_sock
 
-def process_command(json_data):
+        except KeyboardInterrupt:
+	    print "Keyboard Interrupt, quitting"
+	    server_sock.close()
+            del tc
+	    sys.exit(0)
+
+
+def process_command(client_sock, json_data):
         command = json_data["command"]
         if  command == "Horizontal":
             power = json_data["Power"]
@@ -53,13 +63,20 @@ def process_command(json_data):
                 tc.stopPitch()
         if  command == "Fire":
             tc.pullTrigger()
-            dl.writeLog(device_id="test-device-324325")
+            dl.writeLog(device_id=json_data["ID"])
 
         if  command == "Logs":
-            logs = dl.readLog()
+            if "First" in json_data and json_data["First"] == "False":
+                logs = dl.readLog(new_read=False)
+            else:
+                logs = dl.readLog()
             log_json = json.dumps(logs)
-            client_sock.send(log_json)
-            print "Send Firing Log"
+            print log_json
+            client_sock.send(str(log_json)+'\r\n')
+            print "Sent Firing Log"
+
+        if command == "Register":
+            dl.registerDevice(device_id=json_data["ID"], name=json_data["Name"])
 
 
 def handleInput(client_sock):
@@ -74,8 +91,7 @@ def handleInput(client_sock):
                     print item
                     json_data = decoder.decode(item)
                     if ("command" in json_data):
-                        print "Command in json"
-                        process_command(json_data)
+                        process_command(client_sock, json_data)
 
 
 	except IOError:
@@ -84,13 +100,14 @@ def handleInput(client_sock):
             server_sock.close()
 	    handleInput(btAdvertise())
 
-	sys.exit(0)
+	except KeyboardInterrupt:
+	    print "disconnected, quitting"
+	    client_sock.close()
+	    server_sock.close()
+	    del tc
+            sys.exit(0)
 
-	#except KeyboardInterrupt:
-	#    print "disconnected, quitting"
-	#    client_sock.close()
-	#    server_sock.close()
-	#    sys.exit(0)
+        sys.exit(0)
 
 killThreads = False
 handleInput(btAdvertise());

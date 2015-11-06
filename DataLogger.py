@@ -27,10 +27,16 @@ class DataLogger:
 		if self.DEBUG:
 			print "Reading log, new_read=%s set_size=%s device_id=%s" % (str(new_read), str(set_size), str(device_id))
 		if new_read:
-			query = "SELECT device_id, discharge_timestamp FROM firing_log";
+			query = "SELECT fl.device_id, u.name, fl.discharge_timestamp FROM firing_log fl JOIN users u ON u.device_id=fl.device_id"
 			if device_id is not None:
 				query += " WHERE device_id='"+str(device_id)+"'"
-			self.cursor.execute(query)
+                        query += " ORDER BY discharge_timestamp DESC"
+                        if self.DEBUG:
+                                print query
+                        try:
+			        self.cursor.execute(query)
+                        except db.Error, e:
+                                print "Error %s:" % e.args[0]
 
 		readCount = 0
 		rows = []
@@ -38,9 +44,19 @@ class DataLogger:
 			row = self.cursor.fetchone()
 			if row == None:
 				break
-			rows.append({'device_id':row[0], 'discharge_timestamp':row[1]})
+                        rows.append({'device_id':row[0], 'name':row[1], 'discharge_timestamp':row[2]})
 			readCount += 1
                 return rows
+
+        def registerDevice(self, device_id, name):
+                try:
+                        self.cursor.execute("INSERT OR IGNORE INTO users (device_id, name) VALUES (?, ?)",(device_id,name))
+                        self.connection.commit()
+                except db.Error, e:
+                        print "Error %s:" % e.args[0]
+                if self.DEBUG:
+                        print "Device registered - "+str(device_id)+":"+str(name)
+
 
 	def __del__(self):
 		if self.connection:
