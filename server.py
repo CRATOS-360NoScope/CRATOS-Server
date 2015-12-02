@@ -46,7 +46,7 @@ def btAdvertise():
 def process_command(client_sock, json_data):
         command = json_data["command"]
         if  command == "Horizontal":
-            power = json_data["Power"]
+            power = int(json_data["Power"])
             if power > 0:
                 tc.startYaw(1)
             elif power < 0:
@@ -54,11 +54,11 @@ def process_command(client_sock, json_data):
             else:
                 tc.stopYaw()
         if  command == "Vertical":
-            power = json_data["Power"]
+            power = int(json_data["Power"])
             if power > 0:
-                tc.startPitch(1)
+                tc.startPitch(direction=-1,sensitivity=power)
             elif power < 0:
-                tc.startPitch(-1)
+                tc.startPitch(direction=1,sensitivity=power)
             else:
                 tc.stopPitch()
         if  command == "Fire":

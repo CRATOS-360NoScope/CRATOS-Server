@@ -9,7 +9,7 @@ class DataLogger:
 	def __init__(self, debug=False):
 		self.DEBUG = debug
 		try:
-			self.connection = db.connect('cratos_data.db')
+			self.connection = db.connect('/home/pi/CRATOS/CRATOS-Server/cratos_data.db')
 			self.cursor = self.connection.cursor()
 		except db.Error, e:
 			print "Error %s:" % e.args[0]
@@ -27,7 +27,7 @@ class DataLogger:
 		if self.DEBUG:
 			print "Reading log, new_read=%s set_size=%s device_id=%s" % (str(new_read), str(set_size), str(device_id))
 		if new_read:
-			query = "SELECT fl.device_id, u.name, fl.discharge_timestamp FROM firing_log fl JOIN users u ON u.device_id=fl.device_id"
+			query = "SELECT fl.device_id, u.name, datetime(fl.discharge_timestamp, 'localtime') FROM firing_log fl JOIN users u ON u.device_id=fl.device_id"
 			if device_id is not None:
 				query += " WHERE device_id='"+str(device_id)+"'"
                         query += " ORDER BY discharge_timestamp DESC"

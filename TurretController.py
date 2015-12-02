@@ -10,9 +10,9 @@ class TurretController:
 	pwm_yaw   = None
 	pwm_pitch = None
 	pwm_fire = None
-	min_pitch = 5.9 #was 0
-	max_pitch = 9.1 #was 12.5
-	current_pitch = 7.5
+	min_pitch = 6.8 #was 0
+	max_pitch = 10.0 #was 12.5
+	current_pitch = 8.4
 	stopPitchFlag = False
 	DEBUG = False
 	pitchDelta = False
@@ -32,11 +32,11 @@ class TurretController:
 
 		self.pwm_yaw = GPIO.PWM(self.GPIO_PIN_YAW, 53)
 		self.pwm_pitch = GPIO.PWM(self.GPIO_PIN_PITCH, 50)
-		self.pwm_fire = GPIO.PWM(self.GPIO_PIN_FIRE, 50)
+		self.pwm_fire = GPIO.PWM(self.GPIO_PIN_FIRE, 25)
 
 		self.pwm_yaw.start(7.5)
-		self.pwm_pitch.start(7.5)
-		self.pwm_fire.start(2.5)
+		self.pwm_pitch.start(self.current_pitch)
+		self.pwm_fire.start(2)
 
 		self.DEBUG = debug
 
@@ -61,9 +61,9 @@ class TurretController:
 		if (self.triggerLock.locked()):
 			return
 		self.triggerLock.acquire()
-		self.pwm_fire.ChangeDutyCycle(8) #pull trigger(not tested)
+		self.pwm_fire.ChangeDutyCycle(5) #pull trigger(not tested)
 		time.sleep(0.5)
-		self.pwm_fire.ChangeDutyCycle(2.5) #return to original spot
+		self.pwm_fire.ChangeDutyCycle(2) #return to original spot
 		time.sleep(0.5)
 		self.triggerLock.release()
 		if self.DEBUG:
@@ -89,11 +89,12 @@ class TurretController:
 			print "** stopYaw **"
 		self.pwm_yaw.ChangeDutyCycle(0) #was 7.5 -> 0 is off
 
-	def startPitch(self, direction, sensitivity=.02):
-		self.pitchDelta = direction*sensitivity
+	def startPitch(self, direction, sensitivity=100):
+		self.pitchDelta = -float(sensitivity)/10000.0
 		if self.DEBUG:
 			print "** startPitch **"
 			print "pitchDelta: "+str(self.pitchDelta)
+                        print "Sensitivity: "+str(sensitivity)
 		if not self.pitchingActive:
 			if self.DEBUG:
 				print "pitchThread run"
@@ -111,12 +112,13 @@ class TurretController:
 			if self.current_pitch < self.min_pitch:
 				self.current_pitch = self.min_pitch
 				break
-			print "Duty Cycle: "+str(self.current_pitch)
+                        #if self.DEBUG:
+			    #print "Duty Cycle: "+str(self.current_pitch)
 			self.pwm_pitch.ChangeDutyCycle(self.current_pitch)
 			time.sleep(0.01)
 		time.sleep(0.2)
 		self.pitchingActive = False
-		self.pwm_pitch.ChangeDutyCycle(0)
+		#self.pwm_pitch.ChangeDutyCycle(0)
 		print "pitchWorker exit"
 		return
 
